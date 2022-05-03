@@ -3,7 +3,7 @@ import fs from 'fs/promises'
 import { exec } from 'child_process'
 
 const file = process.env.FILE;
-const port = process.env.PORTp
+const port = process.env.PORT;
 
 const server = dgram.createSocket('udp4')
 
@@ -35,8 +35,8 @@ server.on('listening', () => {
 	console.log(`server listening ${address.address}:${address.port}`)
 })
 
-if (!port) {
-    console.error(`No port specified`);
+if (!port || !file) {
+    console.error(`No port or file specified`);
     process.exit(-1);
 }
 server.bind(port)
