@@ -23,7 +23,7 @@ def publish_loop():
         send_thread = threading.Thread(target=send) 
         send_thread.daemon = True
         send_thread.start()
-        time.sleep(15 * 1)
+        time.sleep(15 * 60)
 
 def exit(a,b):
     sock.close()

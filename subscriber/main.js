@@ -1,9 +1,13 @@
 import dgram from 'dgram'
-import fs from 'fs'
+import fs from 'fs/promises'
+import { exec } from 'child_process'
 
-const port = process.env.PORT
+const file = process.env.FILE;
+const port = process.env.PORTp
 
 const server = dgram.createSocket('udp4')
+
+let lastIp;
 
 server.on('error', (err) => {
 	console.error("Error starting server: " + err)
@@ -22,6 +26,8 @@ server.on('message', (buf, rinfo) => {
     console.log(`${new Date().toISOString()}\tReceived IP: ${ip}`)
 
     // Assign ip to nginx
+	if (lastIp == ip) { return; }
+	replaceIp(ip);
 })
 
 server.on('listening', () => {
@@ -37,6 +43,14 @@ server.bind(port)
 
 
 //**********************************************************
+async function replaceIp(ip) {
+	const conf = await fs.readFile(file);
+	const regex = /proxy_pass\s[0-9\.]+;/g;
+	const newConf = conf.replace(regex, `proxy_pass ${ip};`);
+	await fs.writeFile(file, newConf);
+	exec(`/etc/init.d/nginx reload`)
+}
+
 function processMessage(buf) {
 	let json;
 	if (buf.length > 14) { return null; }	
