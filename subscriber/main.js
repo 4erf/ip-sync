@@ -1,11 +1,12 @@
 import dgram from 'dgram'
-import fs from 'fs/promises'
-import { exec } from 'child_process'
+import axios from 'axios'
 
-const file = process.env.FILE;
+const token = process.env.TOKEN;
+const record = process.env.RECORD;
 const port = process.env.PORT;
 
 const server = dgram.createSocket('udp4')
+const api = `https://api.digitalocean.com/v2/domains/erwor.me/records/${record}`
 
 let lastIp;
 
@@ -23,11 +24,15 @@ server.on('message', (buf, rinfo) => {
 		)
 		return;
 	}
-    console.log(`${new Date().toISOString()}\tReceived IP: ${ip}`)
 
-    // Assign ip to nginx
 	if (lastIp == ip) { return; }
+
+    console.log(`${new Date().toISOString()}\tReceived new IP: ${ip}`)
+
+    // Assign ip to A-record
 	replaceIp(ip);
+
+	lastIp = ip;
 })
 
 server.on('listening', () => {
@@ -35,8 +40,8 @@ server.on('listening', () => {
 	console.log(`server listening ${address.address}:${address.port}`)
 })
 
-if (!port || !file) {
-    console.error(`No port or file specified`);
+if (!port || !token || !record) {
+    console.error(`No port, token or record specified`);
     process.exit(-1);
 }
 server.bind(port)
@@ -44,11 +49,19 @@ server.bind(port)
 
 //**********************************************************
 async function replaceIp(ip) {
-	const conf = await fs.readFile(file);
-	const regex = /proxy_pass\s[0-9\.]+;/g;
-	const newConf = conf.replace(regex, `proxy_pass ${ip};`);
-	await fs.writeFile(file, newConf);
-	exec(`/etc/init.d/nginx reload`)
+	try {
+		await axios({
+			method: 'patch',
+			url: api,
+			data: {
+				type: 'A',
+				data: ip,
+			},
+			headers: { 'Authorization': `Bearer ${token}` },
+		})
+	} catch (e) {
+		console.error(e)
+	}
 }
 
 function processMessage(buf) {
